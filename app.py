@@ -1,119 +1,123 @@
-# app.py
-
 import streamlit as st
-import numpy as np
 import tensorflow as tf
+import numpy as np
 import pickle
 from PIL import Image
 import pandas as pd
 import plotly.express as px
 
-# ---------------------------------------------------
+# --------------------------------------------------
 # PAGE CONFIG
-# ---------------------------------------------------
+# --------------------------------------------------
 st.set_page_config(
-    page_title="Road Damage Detection System",
-    page_icon="🛣️",
+    page_title="Road Damage Detection",
+    page_icon="🚧",
     layout="wide"
 )
 
-# ---------------------------------------------------
+# --------------------------------------------------
+# CUSTOM CSS
+# --------------------------------------------------
+st.markdown("""
+<style>
+
+.main {
+    background-color: #0E1117;
+}
+
+.hero {
+    background: linear-gradient(135deg,#1e3c72,#2a5298);
+    padding: 2rem;
+    border-radius: 20px;
+    text-align:center;
+    color:white;
+    margin-bottom:20px;
+}
+
+.metric-card{
+    background:#161b22;
+    padding:15px;
+    border-radius:15px;
+    border:1px solid #30363d;
+    text-align:center;
+}
+
+.high{
+    background:#ff4b4b;
+    color:white;
+    padding:10px;
+    border-radius:10px;
+    text-align:center;
+    font-weight:bold;
+}
+
+.medium{
+    background:#ffa500;
+    color:white;
+    padding:10px;
+    border-radius:10px;
+    text-align:center;
+    font-weight:bold;
+}
+
+.low{
+    background:#00c853;
+    color:white;
+    padding:10px;
+    border-radius:10px;
+    text-align:center;
+    font-weight:bold;
+}
+
+.about-box{
+    background:#161b22;
+    padding:20px;
+    border-radius:15px;
+    border:1px solid #30363d;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# --------------------------------------------------
 # LOAD MODEL
-# ---------------------------------------------------
+# --------------------------------------------------
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("road_damage_cnn.h5")
-    return model
+    return tf.keras.models.load_model("road_damage_cnn.h5")
 
 @st.cache_resource
 def load_encoder():
-    with open("label_encoder.pkl", "rb") as f:
-        encoder = pickle.load(f)
-    return encoder
+    with open("label_encoder.pkl","rb") as f:
+        return pickle.load(f)
 
 model = load_model()
-label_encoder = load_encoder()
+encoder = load_encoder()
 
-# ---------------------------------------------------
-# HEADER
-# ---------------------------------------------------
-st.markdown("""
-# 🚧 AI-Based Road Damage Detection System
-
-### Smart City Infrastructure Monitoring using CNN
-""")
-
-st.divider()
-
-# ---------------------------------------------------
-# ABOUT PROJECT
-# ---------------------------------------------------
-st.subheader("📘 About the Project")
-
-st.markdown("""
-Road infrastructure plays a critical role in transportation safety and economic development.
-Manual road inspection is expensive, time-consuming, and often inefficient.
-
-### Why Road Monitoring is Important
-- Prevent accidents caused by damaged roads.
-- Reduce maintenance costs through early detection.
-- Improve public safety and transportation efficiency.
-- Enable smart city infrastructure management.
-
-### Role of CNN in Computer Vision
-Convolutional Neural Networks (CNNs) automatically learn visual patterns from images.
-They can identify:
-- Potholes
-- Cracks
-- Surface damage
-- Road deterioration
-
-CNNs provide fast and accurate road condition assessment using image analysis.
-
-### Practical Industry Applications
-- Smart City Monitoring
-- Highway Maintenance Systems
-- Municipal Road Inspection
-- Autonomous Vehicles
-- Infrastructure Asset Management
-""")
-
-st.divider()
-
-# ---------------------------------------------------
-# IMAGE UPLOAD
-# ---------------------------------------------------
-st.subheader("📤 Upload Road Image")
-
-uploaded_file = st.file_uploader(
-    "Upload a road image",
-    type=["jpg", "jpeg", "png"]
+# --------------------------------------------------
+# AUTO IMAGE SIZE
+# --------------------------------------------------
+INPUT_SIZE = (
+    model.input_shape[1],
+    model.input_shape[2]
 )
 
-# ---------------------------------------------------
-# IMAGE PREPROCESSING
-# ---------------------------------------------------
-# ---------------------------------------------------
-# IMAGE PREPROCESSING
-# ---------------------------------------------------
-IMG_SIZE = (128, 128)
+# --------------------------------------------------
+# PREPROCESS
+# --------------------------------------------------
+def preprocess(img):
 
-def preprocess_image(image):
+    img = img.convert("RGB")
+    img = img.resize(INPUT_SIZE)
 
-    image = image.convert("RGB")
-    image = image.resize(IMG_SIZE)
+    arr = np.array(img)/255.0
+    arr = np.expand_dims(arr,axis=0)
 
-    img_array = np.array(image)
+    return arr
 
-    img_array = img_array.astype("float32") / 255.0
-
-    img_array = np.expand_dims(img_array, axis=0)
-
-    return img_array
-
-# ---------------------------------------------------
-# SEVERITY MAPPING
-# ---------------------------------------------------
+# --------------------------------------------------
+# SEVERITY
+# --------------------------------------------------
 def get_severity(label):
 
     label = label.lower()
@@ -127,120 +131,160 @@ def get_severity(label):
     else:
         return "Low"
 
-# ---------------------------------------------------
-# RECOMMENDATIONS
-# ---------------------------------------------------
-def get_recommendation(severity):
+# --------------------------------------------------
+# HEADER
+# --------------------------------------------------
+st.markdown("""
+<div class="hero">
+<h1>🚧 AI-Based Road Damage Detection System</h1>
+<h4>Smart City Infrastructure Monitoring using CNN</h4>
+</div>
+""", unsafe_allow_html=True)
 
-    if severity == "High":
-        return (
-            "Immediate maintenance recommended.",
-            "⚠️ High-risk road condition detected."
-        )
+# --------------------------------------------------
+# ABOUT
+# --------------------------------------------------
+with st.expander("📘 About Project", expanded=True):
 
-    elif severity == "Medium":
-        return (
-            "Schedule repair work soon.",
-            "⚠️ Moderate damage may worsen over time."
-        )
+    st.markdown("""
+### Why Road Monitoring Matters
 
-    else:
-        return (
-            "Routine monitoring recommended.",
-            "✅ Road condition appears relatively safe."
-        )
+Road damage affects public safety, transportation efficiency,
+vehicle maintenance costs, and smart-city development.
 
-# ---------------------------------------------------
-# PREDICTION SECTION
-# ---------------------------------------------------
-if uploaded_file is not None:
+### CNN in Computer Vision
 
-    image = Image.open(uploaded_file)
+Convolutional Neural Networks automatically learn visual
+patterns from road images and identify:
 
-    st.divider()
+- Potholes
+- Cracks
+- Surface Deterioration
+- Structural Damage
 
-    # SECTION 4
-    st.subheader("🖼 Uploaded Image Preview")
+### Industry Applications
 
-    col1, col2 = st.columns([1,1])
+✅ Smart Cities
 
+✅ Highway Monitoring
+
+✅ Municipal Road Inspection
+
+✅ Autonomous Vehicles
+
+✅ Infrastructure Asset Management
+""")
+
+# --------------------------------------------------
+# UPLOAD
+# --------------------------------------------------
+st.subheader("📤 Upload Road Image")
+
+uploaded = st.file_uploader(
+    "Drag & Drop or Browse Image",
+    type=["jpg","jpeg","png"]
+)
+
+# --------------------------------------------------
+# PREDICTION
+# --------------------------------------------------
+if uploaded:
+
+    image = Image.open(uploaded)
+
+    col1,col2 = st.columns([1.2,1])
+
+    # IMAGE PREVIEW
     with col1:
+
+        st.subheader("🖼 Uploaded Road Image")
+
         st.image(
             image,
-            caption="Uploaded Road Image",
             use_container_width=True
         )
 
-    # Prediction
-    processed = preprocess_image(image)
+    # PREDICT
+    pred = model.predict(
+        preprocess(image),
+        verbose=0
+    )
 
-    prediction = model.predict(processed, verbose=0)
+    idx = np.argmax(pred)
 
-    predicted_index = np.argmax(prediction)
+    label = encoder.inverse_transform([idx])[0]
 
-    class_name = label_encoder.inverse_transform(
-        [predicted_index]
-    )[0]
+    confidence = float(np.max(pred)*100)
 
-    confidence = float(np.max(prediction) * 100)
+    severity = get_severity(label)
 
-    severity = get_severity(class_name)
-
-    recommendation, warning = get_recommendation(severity)
-
-    # ---------------------------------------------------
-    # SECTION 5
-    # ---------------------------------------------------
+    # RESULTS
     with col2:
 
         st.subheader("🔍 Prediction Results")
 
-        st.success(f"Prediction: {class_name}")
+        c1,c2 = st.columns(2)
 
-        st.metric(
-            label="Confidence",
-            value=f"{confidence:.2f}%"
-        )
+        with c1:
+            st.metric(
+                "Damage Type",
+                label
+            )
 
-        if severity == "High":
-            st.error(f"Severity: {severity}")
+        with c2:
+            st.metric(
+                "Confidence",
+                f"{confidence:.2f}%"
+            )
 
-        elif severity == "Medium":
-            st.warning(f"Severity: {severity}")
+        st.markdown("### Severity")
+
+        if severity=="High":
+            st.markdown(
+                '<div class="high">HIGH RISK</div>',
+                unsafe_allow_html=True
+            )
+
+        elif severity=="Medium":
+            st.markdown(
+                '<div class="medium">MEDIUM RISK</div>',
+                unsafe_allow_html=True
+            )
 
         else:
-            st.info(f"Severity: {severity}")
+            st.markdown(
+                '<div class="low">LOW RISK</div>',
+                unsafe_allow_html=True
+            )
 
     st.divider()
 
-    # ---------------------------------------------------
-    # SECTION 6
+    # --------------------------------------------------
     # VISUALIZATION
-    # ---------------------------------------------------
-    st.subheader("📊 Visualization Area")
+    # --------------------------------------------------
+    st.subheader("📊 Prediction Analytics")
 
-    class_labels = list(label_encoder.classes_)
-
-    probs = prediction[0] * 100
+    classes = list(encoder.classes_)
 
     df = pd.DataFrame({
-        "Damage Type": class_labels,
-        "Confidence (%)": probs
+        "Class": classes,
+        "Confidence": pred[0]*100
     })
 
-    col3, col4 = st.columns(2)
+    col3,col4 = st.columns(2)
 
     with col3:
 
-        fig1 = px.bar(
+        fig = px.bar(
             df,
-            x="Damage Type",
-            y="Confidence (%)",
-            title="Class Confidence Graph"
+            x="Class",
+            y="Confidence",
+            title="Class Confidence Graph",
+            text_auto=".2f"
         )
 
         st.plotly_chart(
-            fig1,
+            fig,
             use_container_width=True
         )
 
@@ -248,9 +292,9 @@ if uploaded_file is not None:
 
         fig2 = px.pie(
             df,
-            values="Confidence (%)",
-            names="Damage Type",
-            title="Probability Distribution Chart"
+            names="Class",
+            values="Confidence",
+            title="Probability Distribution"
         )
 
         st.plotly_chart(
@@ -258,38 +302,42 @@ if uploaded_file is not None:
             use_container_width=True
         )
 
-    st.divider()
-
-    # ---------------------------------------------------
-    # SECTION 7
+    # --------------------------------------------------
     # RECOMMENDATIONS
-    # ---------------------------------------------------
-    st.subheader("🛠 Recommendations")
+    # --------------------------------------------------
+    st.subheader("🛠 Maintenance Recommendation")
 
-    st.info(recommendation)
+    if severity=="High":
 
-    st.warning(warning)
+        st.error("""
+🚨 Immediate maintenance recommended.
 
-    if severity == "High":
-        st.error(
-            "Road repair should be prioritized immediately to prevent accidents."
-        )
+High-risk road condition detected.
 
-    elif severity == "Medium":
-        st.warning(
-            "Periodic inspection and repair scheduling recommended."
-        )
+Road repair should be prioritized immediately.
+""")
+
+    elif severity=="Medium":
+
+        st.warning("""
+⚠ Schedule maintenance soon.
+
+Moderate damage may worsen if ignored.
+""")
 
     else:
-        st.success(
-            "No urgent maintenance action required."
-        )
 
-# ---------------------------------------------------
+        st.success("""
+✅ Road condition appears stable.
+
+Routine monitoring recommended.
+""")
+
+# --------------------------------------------------
 # FOOTER
-# ---------------------------------------------------
-st.divider()
+# --------------------------------------------------
+st.markdown("---")
 
 st.caption(
-    "AI-Based Road Damage Detection System | Smart City Infrastructure Monitoring using CNN"
+    "AI-Based Road Damage Detection System • Smart City Infrastructure Monitoring using CNN"
 )
