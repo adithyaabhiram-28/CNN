@@ -170,7 +170,7 @@ if uploaded_file is not None:
     # Prediction
     processed = preprocess_image(image)
 
-    prediction = model.predict(processed)
+    prediction = model.predict(processed, verbose=0)
 
     predicted_index = np.argmax(prediction)
 
