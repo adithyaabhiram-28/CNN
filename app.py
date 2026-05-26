@@ -93,16 +93,20 @@ uploaded_file = st.file_uploader(
 # ---------------------------------------------------
 # IMAGE PREPROCESSING
 # ---------------------------------------------------
-IMG_SIZE = (224, 224)
+# ---------------------------------------------------
+# IMAGE PREPROCESSING
+# ---------------------------------------------------
+IMG_SIZE = (128, 128)
 
 def preprocess_image(image):
+
+    image = image.convert("RGB")
     image = image.resize(IMG_SIZE)
+
     img_array = np.array(image)
 
-    if img_array.shape[-1] == 4:
-        img_array = img_array[:, :, :3]
-
     img_array = img_array.astype("float32") / 255.0
+
     img_array = np.expand_dims(img_array, axis=0)
 
     return img_array
